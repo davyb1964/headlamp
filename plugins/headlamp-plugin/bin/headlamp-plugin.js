@@ -231,9 +231,10 @@ function extract(pluginPackagesPath, outputPlugins) {
 
 /**
  * Start watching for changes, and build again if there are changes.
- * @returns {0} Exit code, where 0 is success.
+ * @param {boolean} forceCheck - forces an update check regardless of last check time.
+ * @returns {Promise<number>} - promise that resolves with the exit code, where 0 is success.
  */
-function start() {
+async function start(forceCheck = false) {
   /**
    * Copies the built plugin to the app config folder ~/.config/Headlamp/plugins/
    *
@@ -269,24 +270,46 @@ function start() {
   }
 
   /**
-   * Inform if @kinvolk/headlamp-plugin is outdated.
+   * Inform if @kinvolk/headlamp-plugin is outdated, and check for updates if 24h have passed.
    */
-  function informIfOutdated() {
-    console.log('Checking if headlamp-plugin is up to date...');
-    const outdated = getNpmOutdated();
-    if ('@kinvolk/headlamp-plugin' in outdated) {
-      const url = `https://github.com/kinvolk/headlamp/releases`;
-      console.warn(
-        '    @kinvolk/headlamp-plugin is out of date. Run the following command to upgrade \n' +
-          `    See release notes here: ${url}` +
-          '    npx @kinvolk/headlamp-plugin upgrade'
+  async function informIfOutdated() {
+    const lastCheckTime = process.env.LAST_UPDATE_CHECK
+      ? parseInt(process.env.LAST_UPDATE_CHECK, 10)
+      : null;
+    const currentTime = Date.now();
+    const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
+
+    if (!forceCheck && lastCheckTime && currentTime - lastCheckTime < oneDayInMilliseconds) {
+      console.log(
+        '    Update check for @kinvolk/headlamp-plugin recently performed. \n' +
+          '    To force an update check, restart with the --force-check flag.'
       );
-    } else {
-      console.log('    @kinvolk/headlamp-plugin is up to date.');
+      return;
     }
+
+    try {
+      console.log('Checking if @kinvolk/headlamp-plugin is up to date...');
+      const outdated = await getLatestPkgVersion();
+      if ('@kinvolk/headlamp-plugin' in outdated) {
+        const url = `https://github.com/kinvolk/headlamp/releases`;
+        console.warn(
+          '    @kinvolk/headlamp-plugin is out of date. Run the following command to upgrade \n' +
+            `    See release notes here: ${url}` +
+            '    npx @kinvolk/headlamp-plugin upgrade'
+        );
+      } else {
+        console.log('    @kinvolk/headlamp-plugin is up to date.');
+      }
+    } catch (error) {
+      console.error('Error checking if @kinvolk/headlamp-plugin is up to date:', error);
+    }
+
+    process.env.LAST_UPDATE_CHECK = currentTime.toString();
   }
 
-  informIfOutdated();
+  informIfOutdated().catch(error => {
+    console.error('Failed to check for updates:', error);
+  });
 
   config.watch = true;
   config.mode = 'development';
@@ -584,6 +607,44 @@ function getNpmOutdated() {
     result = error.stdout.toString();
   }
   return JSON.parse(result);
+}
+
+/**
+ * Use fetch to get the latest package version from the npm registry.
+ *
+ * @returns {Promise<Object>} - promise that resolves to an object containing version information
+ * if the package is outdated, or an empty object.
+ */
+async function getLatestPkgVersion() {
+  const packageName = '@kinvolk/headlamp-plugin';
+  const url = `https://registry.npmjs.org/${packageName}/latest`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(`HTTP Error Response: ${response.status} ${response.statusText}`);
+    }
+
+    const currentVersion = require('../package.json').version;
+    const latestVersion = data.version;
+
+    if (currentVersion !== latestVersion) {
+      return {
+        [packageName]: {
+          current: require('../package.json').version,
+          latest: data.version,
+          location: `node_modules/${packageName}`,
+        },
+      };
+    } else {
+      return {};
+    }
+  } catch (error) {
+    console.error(`Error fetching latest package version: ${error}`);
+    return {};
+  }
 }
 
 /**
@@ -992,9 +1053,20 @@ yargs(process.argv.slice(2))
       process.exitCode = build(argv.package);
     }
   )
-  .command('start', 'Watch for changes and build plugin.', {}, () => {
-    process.exitCode = start();
-  })
+  .command(
+    'start',
+    'Watch for changes and build plugin.',
+    yargs => {
+      yargs.option('force-check', {
+        describe: 'Force the update check regardless of the last check time.',
+        type: 'boolean',
+        default: false,
+      });
+    },
+    async argv => {
+      process.exitCode = await start(argv.forceCheck);
+    }
+  )
   .command(
     'create <name>',
     'Create a new plugin folder.',
