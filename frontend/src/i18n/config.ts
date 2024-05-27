@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
-import sharedConfig from './i18nextSharedConfig';
+import sharedConfig from './i18nextSharedConfig.mjs';
 
 const en = {}; // To keep TS happy.
 
@@ -27,9 +27,9 @@ i18next
       namespace: Namespace,
       callback: (errorValue: unknown, translations: null | (typeof en)[Namespace]) => void
     ) {
-      import(`./locales/${language}/${namespace}.json`)
+      import(`./locales/${language}/${namespace}.json?import=default`)
         .then(resources => {
-          callback(null, resources);
+          callback(null, resources.default);
         })
         .catch(error => {
           callback(error, null);

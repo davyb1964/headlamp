@@ -210,7 +210,7 @@ declare global {
   interface Window {
     headlampBaseUrl?: string;
     Buffer: typeof Buffer;
-    clusterConfigFetchHandler: ReturnType<typeof setInterval>;
+    clusterConfigFetchHandler: number;
     ddClient: any | undefined;
   }
 }
