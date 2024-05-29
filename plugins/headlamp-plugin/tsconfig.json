@@ -17,13 +17,15 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "noFallthroughCasesInSwitch": true,
-    "emitDeclarationOnly": false
+    "emitDeclarationOnly": false,
+    "types": ["node"]
   },
   "exclude": [
     "./src/components/TestHelpers/**/*",
     "./src/plugin/index.ts",
     "./src/plugin/headlamp-plugin/**/*",
-    "./**/*.test.ts"
+    "./**/*.test.ts",
+    "./**/*.test.tsx"
   ],
   "include": [
     "./src/*.ts",
