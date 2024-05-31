@@ -13,6 +13,7 @@ import Pod from '../../lib/k8s/pod';
 import ReplicaSet from '../../lib/k8s/replicaSet';
 import StatefulSet from '../../lib/k8s/statefulSet';
 import { getReadyReplicas, getTotalReplicas } from '../../lib/util';
+import Link from '../common/Link';
 import { PageGrid, ResourceLink } from '../common/Resource';
 import ResourceListView from '../common/Resource/ResourceListView';
 import { SectionBox } from '../common/SectionBox';
@@ -93,6 +94,11 @@ export default function Overview() {
     );
   });
 
+  function ChartLink(name: string) {
+    const linkName = name.toLowerCase() + 's';
+    return <Link routeName={linkName}>{name + 's'}</Link>;
+  }
+
   return (
     <PageGrid>
       <SectionBox py={2} mt={1}>
@@ -102,7 +108,7 @@ export default function Overview() {
               <WorkloadCircleChart
                 workloadData={workloadsData[name] || null}
                 // @todo: Use a plural from from the class itself when we have it
-                title={name + 's'}
+                title={ChartLink(name)}
                 partialLabel={t('translation|Failed')}
                 totalLabel={t('translation|Running')}
               />
